@@ -1,39 +1,45 @@
 import streamlit as st
+import os
 from openai import OpenAI
 from openinference.instrumentation.openai import OpenAIInstrumentor
 from phoenix.otel import register
 
-tracer_provider = register(
-  project_name="default",
-  endpoint="https://app.phoenix.arize.com/v1/traces",
-)
-
 @st.cache_resource
 def _register_opentelemetry():
-    OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 
-def main() -> None:
-    _register_opentelemetry()
+    tracer_provider = register(
+    project_name="default",
+    endpoint="https://app.phoenix.arize.com/v1/traces",
+    )
+    OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 
 
 # Show title and description.
 st.title("💬 Chatbot")
 st.write(
-    "This is a simple chatbot that uses OpenAI's GPT-3.5 model to generate responses. "
+    "This is a simple chatbot based on the streamlit tutorial for a openai chatbot using Phoenix Arize for Observability. "
     "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
-    "You can also learn how to build this app step by step by [following our tutorial](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)."
+    "You will also need an API key from https://phoenix.arize.com/, the open-source LLM tracing and evaluation platform"
 )
 
 # Ask user for their OpenAI API key via `st.text_input`.
 # Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
 # via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
+#openai_api_key = st.secrets["OPENAI_API_KEY"]
 openai_api_key = st.text_input("OpenAI API Key", type="password")
-if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
-else:
+
+# Ask user for their Phoenix Arize key via st.text_input`. Could also be available via secret.
+phoenix_api_key = st.text_input("Phoenix Arize API Key", type="password")
+#phoenix_api_key = st.secrets["PHOENIX_API_KEY"]
+os.environ["PHOENIX_CLIENT_HEADERS"] = "api_key=" + phoenix_api_key
+
+if phoenix_api_key and openai_api_key:
 
     # Create an OpenAI client.
     client = OpenAI(api_key=openai_api_key)
+
+    #register telemetry with Phoenix Arize
+    _register_opentelemetry()
 
     # Create a session state variable to store the chat messages. This ensures that the
     # messages persist across reruns.
